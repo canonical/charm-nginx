@@ -9,6 +9,7 @@ tags:
 - "nginx"
 series:
 - "bionic"
+- "focal"
 requires:
   publish:
     interface: "web-publish"
