@@ -1,6 +1,12 @@
 server {
     listen       {{config['port']}};
 
+    {% if config['ssl_enabled'] %}
+    ssl on;
+    ssl_certificate ssl/server.crt;
+    ssl_certificate_key ssl/server.key;
+    {% endif %}
+
     {% for publish in config['publishes'] -%}
     location /{{publish}}/ {
         alias {{config['publishes'][publish]}}/;

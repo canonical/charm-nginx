@@ -13,3 +13,20 @@ options:
     type: string
     default: "127.0.0.1"
     description: "listen address"
+  ssl_cert:
+    type: string
+    default:
+    description: |
+      base64-encoded SSL certificate to install and use for nginx site.
+  ssl_key:
+    type: string
+    default:
+    description: |
+      base64-encoded SSL key to use with certificate specified as ssl_cert.
+  ssl_ca:
+    type: string
+    default:
+    description: |
+      base64-encoded SSL CA to use with the certificate and key provided -
+      this is only required if you are providing a privately signed ssl_cert
+      and ssl_key.
