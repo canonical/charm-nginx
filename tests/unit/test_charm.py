@@ -138,8 +138,8 @@ class TestCharm(unittest.TestCase):
         assert mock_open_call.call_args_list[0] == call('templates/nginx.conf.j2')
         assert mock_open_call.call_args_list[1] == call('/etc/nginx/nginx.conf', "wb")
         assert mock_open_call.call_args_list[2] == call('templates/nginx-site.conf.j2')
-        assert mock_open_call.call_args_list[3] == call('/etc/nginx/sites-available/{}'
-                                                        .format(harness.model.app.name), "wb")
+        assert mock_open_call.call_args_list[3] == call(
+            '/etc/nginx/sites-available/{}'.format(harness.model.app.name), "wb")
         assert os_symlink.call_args == call('/etc/nginx/sites-available/{}'
                                             .format(harness.model.app.name),
                                             '/etc/nginx/sites-enabled/{}'
