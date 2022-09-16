@@ -1,4 +1,9 @@
 type: charm
+
+parts:
+  charm:
+    charm-python-packages: [setuptools < 58]
+
 bases:
     - build-on:
         - name: ubuntu
@@ -13,6 +18,3 @@ bases:
           channel: "18.04"
           architectures:
               - amd64
-parts:
-  charm:
-    charm-python-packages: [setuptools < 58]

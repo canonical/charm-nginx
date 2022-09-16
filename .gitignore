@@ -3,6 +3,9 @@
 build/
 env/
 venv/
-src/__pycache__
-tests/__pycache__
-nginx.charm
+.build/
+.venv/
+.tox/
+.coverage
+__pycache__
+*.charm

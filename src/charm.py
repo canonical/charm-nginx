@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class NginxCharm(CharmBase):
     _stored = StoredState()
 
-    def __init__(self, *args):
+    def __init__(self, *args):  # noqa: D107
         super().__init__(*args)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.install, self._on_install)
