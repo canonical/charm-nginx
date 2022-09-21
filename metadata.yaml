@@ -7,9 +7,6 @@ summary: |
   Nginx is an HTTP and reverse proxy server.
 tags:
 - "nginx"
-series:
-- "bionic"
-- "focal"
 requires:
   publish:
     interface: "web-publish"
