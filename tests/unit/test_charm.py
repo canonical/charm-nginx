@@ -16,6 +16,9 @@ from charm import NginxCharm
 
 class TestCharm(unittest.TestCase):
     def default_config(self):
+        return {"host": uuid4(), "port": random.randint(10, 20)}
+
+    def stored_config(self):
         return {"host": uuid4(), "port": random.randint(10, 20), "publishes": {}}
 
     def test_config_changed(self):
@@ -26,6 +29,7 @@ class TestCharm(unittest.TestCase):
         harness.charm._reload_config = Mock()
         default_config = self.default_config()
         harness.update_config(default_config)
+        default_config["publishes"] = {}
         self.assertEqual(harness.charm._stored.config, default_config)
         self.assertTrue(harness.charm._render_config.called)
         self.assertTrue(harness.charm._reload_config.called)
@@ -141,15 +145,15 @@ class TestCharm(unittest.TestCase):
     def test_template_nginx_conf(self):
         with open("templates/nginx.conf.j2") as f:
             t = Template(f.read())
-        t.render(config=self.default_config()).encode("UTF-8")
+        t.render(config=self.stored_config()).encode("UTF-8")
 
     def test_template_nginx_site_no_publish_conf(self):
         with open("templates/nginx-site.conf.j2") as f:
             t = Template(f.read())
-        t.render(config=self.default_config()).encode("UTF-8")
+        t.render(config=self.stored_config()).encode("UTF-8")
 
     def test_template_nginx_site_publishes_conf(self):
-        config = self.default_config()
+        config = self.stored_config()
         config["publishes"] = {str(uuid4()): str(uuid4())}
         with open("templates/nginx-site.conf.j2") as f:
             t = Template(f.read())
