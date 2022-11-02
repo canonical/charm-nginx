@@ -13,8 +13,8 @@ from ops.testing import Harness
 
 from charm import NginxCharm
 
-DEFAULT_CONFIG = {"host": uuid4(), "port": random.randint(10, 20)}
-STORED_CONFIG = {"host": uuid4(), "port": random.randint(10, 20), "publishes": {}}
+DEFAULT_CONFIG = {"host": str(uuid4()), "port": random.randint(10, 20)}
+STORED_CONFIG = {"host": str(uuid4()), "port": random.randint(10, 20), "publishes": {}}
 
 
 class TestCharm(unittest.TestCase):
@@ -37,8 +37,8 @@ class TestCharm(unittest.TestCase):
         harness.begin()
         harness.charm._render_config = Mock()
         harness.charm._reload_config = Mock()
-        app_name = str(uuid4())
-        peer = "{}/{}".format(app_name, random.randint(0, 100))
+        app_name = "publisher"
+        peer = "{}/{}".format(app_name, random.randint(2, 100))
         relation_id = harness.add_relation("publish", "publisher")
         harness.add_relation_unit(relation_id, peer)
         path = str(uuid4())

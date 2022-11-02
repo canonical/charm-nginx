@@ -1,0 +1,28 @@
+name: Test suite
+
+on:
+  pull_request_review:
+    types: [ submitted ]
+
+jobs:
+  func:
+    name: Functional tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: >-
+      github.event.review.state == 'approved'
+      || github.event.review.body == 'recheck'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+      - name: Setup operator environment
+        uses: charmed-kubernetes/actions-operator@main
+        with:
+          provider: lxd
+      - name: Run functional tests
+        run: tox -e func 
+
