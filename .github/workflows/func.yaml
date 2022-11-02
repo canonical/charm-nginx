@@ -8,10 +8,6 @@ jobs:
   func:
     name: Functional tests
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        series: ["bionic", "focal", "jammy"]
     timeout-minutes: 60
     if: >-
       github.event.review.state == 'approved'
@@ -27,6 +23,6 @@ jobs:
         uses: charmed-kubernetes/actions-operator@main
         with:
           provider: lxd
-      - name: Run tests on ${{ matrix.series }} series
-        run: tox -e func -- --series ${{ matrix.series }}
+      - name: Run functional tests
+        run: tox -e func 
 
