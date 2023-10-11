@@ -5,6 +5,7 @@
 import logging
 import os
 import subprocess
+from os.path import islink
 
 from jinja2 import Template
 from ops.charm import CharmBase
@@ -85,7 +86,7 @@ class NginxCharm(CharmBase):
         with open("/etc/nginx/sites-available/{}".format(site_conf_name), "wb") as f:
             b = t.render(config=config).encode("UTF-8")
             f.write(b)
-        if not os.path.islink("/etc/nginx/sites-enabled/{}".format(site_conf_name)):
+        if not islink("/etc/nginx/sites-enabled/{}".format(site_conf_name)):
             os.symlink(
                 "/etc/nginx/sites-available/{}".format(site_conf_name),
                 "/etc/nginx/sites-enabled/{}".format(site_conf_name),
