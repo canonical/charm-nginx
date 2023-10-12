@@ -116,7 +116,7 @@ class TestCharm(unittest.TestCase):
         harness.charm._reload_config()
         assert mock_subproc.call_args == call(["service", "nginx", "restart"])
 
-    @patch("os.path.islink")
+    @patch("charm.islink")
     @patch("os.symlink")
     @patch("subprocess.check_call")
     def test_render_config(self, mock_subproc, os_symlink, os_path_islink):
@@ -124,9 +124,8 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(harness.cleanup)
         harness.begin()
         config = {}
-        mock_open_call = mock_open(read_data="")
         os_path_islink.return_value = False
-        with patch("builtins.open", mock_open_call):
+        with patch("builtins.open", mock_open()) as mock_open_call:
             harness.charm._render_config(config)
         assert mock_open_call.call_args_list[0] == call("templates/nginx.conf.j2")
         assert mock_open_call.call_args_list[1] == call("/etc/nginx/nginx.conf", "wb")
