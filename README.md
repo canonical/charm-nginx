@@ -1,4 +1,6 @@
 # Nginx
+> [!NOTE]
+> This charm is under maintainence mode. Only critical bug will be handled.
 
 ## Description
 
