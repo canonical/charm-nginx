@@ -1,0 +1,12 @@
+charm_name: nginx
+gate_bundles:
+  - focal
+  - jammy
+smoke_bundles:
+  - focal
+dev_bundles:
+  - focal
+target_deploy_status:
+  nginx:
+    workload-status: unknown
+    workload-status-message-prefix: ""
