@@ -23,9 +23,13 @@ STORED_CONFIG = {
 
 
 class TestCharm(unittest.TestCase):
+    @patch("os.chown")
+    @patch("os.chmod")
     @patch("os.makedirs")
     @patch("subprocess.check_call")
-    def test_config_changed(self, mock_check_call, mock_makedirs):
+    def test_config_changed(
+        self, mock_check_call, mock_makedirs, mock_chmod, mock_chown
+    ):
         harness = Harness(NginxCharm)
         self.addCleanup(harness.cleanup)
         harness.begin()
