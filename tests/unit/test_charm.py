@@ -162,6 +162,8 @@ class TestCharm(unittest.TestCase):
             t = Template(f.read())
         t.render(config=config).encode("UTF-8")
 
+    @patch('os.fchmod')
+    @patch('os.fchown')
     @patch("os.chown")
     @patch("os.chmod")
     @patch("builtins.open", new_callable=mock_open)
@@ -176,6 +178,8 @@ class TestCharm(unittest.TestCase):
         mock_open,
         mock_chmod,
         mock_chown,
+        mock_fchown,
+        mock_fchmod
     ):
         write_file(
             "/tmp/testfile",
