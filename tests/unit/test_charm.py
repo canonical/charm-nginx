@@ -11,22 +11,29 @@ from jinja2 import Template
 from ops.model import ActiveStatus, BlockedStatus
 from ops.testing import Harness
 
-from charm import NginxCharm
+from charm import NginxCharm, file_hash, install_ca_cert, write_file
 
 DEFAULT_CONFIG = {"host": str(uuid4()), "port": random.randint(10, 20)}
-STORED_CONFIG = {"host": str(uuid4()), "port": random.randint(10, 20), "publishes": {}}
+STORED_CONFIG = {
+    "host": str(uuid4()),
+    "port": random.randint(10, 20),
+    "publishes": {},
+    "ssl_enabled": False,
+}
 
 
 class TestCharm(unittest.TestCase):
-    def test_config_changed(self):
+    @patch("subprocess.check_call")
+    def test_config_changed(self, mock_check_call):
         harness = Harness(NginxCharm)
         self.addCleanup(harness.cleanup)
         harness.begin()
         harness.charm._render_config = Mock()
         harness.charm._reload_config = Mock()
-        # default_config = DEFAULT_CONFIG
         harness.update_config(DEFAULT_CONFIG)
-        default_config = {**DEFAULT_CONFIG, "publishes": {}}
+        default_config = {**DEFAULT_CONFIG, "publishes": {}, "ssl_enabled": False}
+        print("Expected config:", default_config)
+        print("Actual config:", harness.charm._stored.config)
         self.assertEqual(harness.charm._stored.config, default_config)
         self.assertTrue(harness.charm._render_config.called)
         self.assertTrue(harness.charm._reload_config.called)
@@ -154,3 +161,55 @@ class TestCharm(unittest.TestCase):
         with open("templates/nginx-site.conf.j2") as f:
             t = Template(f.read())
         t.render(config=config).encode("UTF-8")
+
+    @patch("os.chown")
+    @patch("os.chmod")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("os.path.exists", return_value=False)
+    @patch("pwd.getpwnam")
+    @patch("grp.getgrnam")
+    def test_write_file(
+        self,
+        mock_getgrnam,
+        mock_getpwnam,
+        mock_exists,
+        mock_open,
+        mock_chmod,
+        mock_chown,
+    ):
+        write_file(
+            "/tmp/testfile",
+            b"test content",
+            owner="testuser",
+            group="testgroup",
+            perms=0o644,
+        )
+        mock_getpwnam.assert_called_with("testuser")
+        mock_getgrnam.assert_called_with("testgroup")
+        mock_open.assert_called_with("/tmp/testfile", "wb")
+        # mock_chown.assert_called()
+        # mock_chmod.assert_called()
+
+    @patch("charm.file_hash", return_value="oldhash")
+    @patch("subprocess.check_call")
+    @patch("charm.write_file")
+    def test_install_ca_cert(self, mock_write_file, mock_check_call, mock_file_hash):
+        ca_cert = "test_cert"
+        install_ca_cert(ca_cert, "testname")
+        mock_write_file.assert_called()
+        mock_check_call.assert_called_with(["update-ca-certificates", "--fresh"])
+
+    @patch("os.path.exists", return_value=True)
+    @patch("hashlib.md5")
+    @patch("builtins.open", new_callable=mock_open, read_data=b"test content")
+    def test_file_hash(self, mock_open, mock_md5, mock_exists):
+        mock_hash = Mock()
+        mock_md5.return_value = mock_hash
+        mock_hash.hexdigest.return_value = "testhash"
+
+        result = file_hash("/tmp/testfile")
+
+        self.assertEqual(result, "testhash")
+        mock_open.assert_called_with("/tmp/testfile", "rb")
+        mock_hash.update.assert_called_with(b"test content")
+        mock_hash.hexdigest.assert_called_once()

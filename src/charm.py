@@ -2,9 +2,13 @@
 # Copyright 2020 Ubuntu
 # See LICENSE file for licensing details.
 
+import grp
+import hashlib
 import logging
 import os
+import pwd
 import subprocess
+from base64 import b64decode
 from os.path import islink
 
 from jinja2 import Template
@@ -13,15 +17,10 @@ from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus
 
-import pwd
-import grp
-import hashlib
-
-from base64 import b64decode
-
 logger = logging.getLogger(__name__)
 
-def write_file(path, content, owner='root', group='root', perms=0o444):
+
+def write_file(path, content, owner="root", group="root", perms=0o444):
     """Create or overwrite a file with the contents of a byte string."""
     uid = pwd.getpwnam(owner).pw_uid
     gid = grp.getgrnam(group).gr_gid
@@ -30,17 +29,19 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
     existing_content = None
     existing_uid, existing_gid, existing_perms = None, None, None
     try:
-        with open(path, 'rb') as target:
+        with open(path, "rb") as target:
             existing_content = target.read()
         stat = os.stat(path)
         existing_uid, existing_gid, existing_perms = (
-            stat.st_uid, stat.st_gid, stat.st_mode
+            stat.st_uid,
+            stat.st_gid,
+            stat.st_mode,
         )
     except Exception:
         pass
     if content != existing_content:
         logger.debug("Writing file {} {}:{} {:o}".format(path, owner, group, perms))
-        with open(path, 'wb') as target:
+        with open(path, "wb") as target:
             os.fchown(target.fileno(), uid, gid)
             os.fchmod(target.fileno(), perms)
             # if six.PY3 and isinstance(content, six.string_types):
@@ -50,16 +51,25 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
     # the contents were the same, but we might still need to change the
     # ownership or permissions.
     if existing_uid != uid:
-        logger.debug("Changing uid on already existing content: {} -> {}"
-            .format(existing_uid, uid))
+        logger.debug(
+            "Changing uid on already existing content: {} -> {}".format(
+                existing_uid, uid
+            )
+        )
         os.chown(path, uid, -1)
     if existing_gid != gid:
-        logger.debug("Changing gid on already existing content: {} -> {}"
-            .format(existing_gid, gid))
+        logger.debug(
+            "Changing gid on already existing content: {} -> {}".format(
+                existing_gid, gid
+            )
+        )
         os.chown(path, -1, gid)
     if existing_perms != perms:
-        logger.debug("Changing permissions on existing content: {} -> {}"
-            .format(existing_perms, perms))
+        logger.debug(
+            "Changing permissions on existing content: {} -> {}".format(
+                existing_perms, perms
+            )
+        )
         os.chmod(path, perms)
 
 
@@ -75,19 +85,19 @@ def install_ca_cert(ca_cert, name=None):
     if not ca_cert:
         return
     if not isinstance(ca_cert, bytes):
-        ca_cert = ca_cert.encode('utf8')
+        ca_cert = ca_cert.encode("utf8")
     # if not name:
     #     name = 'juju-{}'.format(charm_name())
-    cert_file = '/usr/local/share/ca-certificates/{}.crt'.format(name)
+    cert_file = "/usr/local/share/ca-certificates/{}.crt".format(name)
     new_hash = hashlib.md5(ca_cert).hexdigest()
     if file_hash(cert_file) == new_hash:
         return
     logger.info("Installing new CA cert at: {}".format(cert_file))
     write_file(cert_file, ca_cert)
-    subprocess.check_call(['update-ca-certificates', '--fresh'])
+    subprocess.check_call(["update-ca-certificates", "--fresh"])
 
 
-def file_hash(path, hash_type='md5'):
+def file_hash(path, hash_type="md5"):
     """Generate a hash checksum of the contents of 'path' or None if not found.
 
     :param str hash_type: Any hash alrgorithm supported by :mod:`hashlib`,
@@ -95,7 +105,7 @@ def file_hash(path, hash_type='md5'):
     """
     if os.path.exists(path):
         h = getattr(hashlib, hash_type)()
-        with open(path, 'rb') as source:
+        with open(path, "rb") as source:
             h.update(source.read())
         return h.hexdigest()
     else:
@@ -159,45 +169,40 @@ class NginxCharm(CharmBase):
                 self._stored.config[key] = value
 
         # this should go into install hook
-        uid = pwd.getpwnam('root').pw_uid
-        gid = grp.getgrnam('root').gr_gid
+        uid = pwd.getpwnam("root").pw_uid
+        gid = grp.getgrnam("root").gr_gid
 
-        path = '/etc/nginx/ssl'
+        path = "/etc/nginx/ssl"
         if not os.path.exists(path):
             os.makedirs(path, 0o755)
             os.chown(path, uid, gid)
             os.chmod(path, 0o755)
 
         config = self._stored.config
-        self._stored.config['ssl_enabled'] = ('ssl_cert' in config.keys() and 
-            'ssl_key' in config.keys() and self._stored.config['ssl_cert'] and
-            self._stored.config['ssl_key'])
+        self._stored.config["ssl_enabled"] = (
+            "ssl_cert" in config.keys()  # noqa: W503
+            and "ssl_key" in config.keys()  # noqa: W503
+            and self._stored.config["ssl_cert"]  # noqa: W503
+            and self._stored.config["ssl_key"]  # noqa: W503
+        )
 
         # write ssl certificate if present
-        if 'ssl_cert' in config.keys() and self._stored.config['ssl_cert']:
-            cert_path = os.path.join('/etc/nginx/ssl', 'server.crt')
-            cert = b64decode(self._stored.config['ssl_cert'])
-            write_file(cert_path, cert, 'root', 'root', 0o644)
+        if "ssl_cert" in config.keys() and self._stored.config["ssl_cert"]:
+            cert_path = os.path.join("/etc/nginx/ssl", "server.crt")
+            cert = b64decode(self._stored.config["ssl_cert"])
+            write_file(cert_path, cert, "root", "root", 0o644)
 
-        if 'ssl_key' in config.keys() and self._stored.config['ssl_key']:
-            key_path = os.path.join('/etc/nginx/ssl', 'server.key')
-            key = b64decode(self._stored.config['ssl_key'])
-            write_file(key_path, key, 'root', 'root', 0o640)
+        if "ssl_key" in config.keys() and self._stored.config["ssl_key"]:
+            key_path = os.path.join("/etc/nginx/ssl", "server.key")
+            key = b64decode(self._stored.config["ssl_key"])
+            write_file(key_path, key, "root", "root", 0o640)
 
-        if 'ca_cert' in config.keys() and self._stored.config['ca_cert']:
-            ca_cert = self._stored.config['ca_cert']
-            install_ca_cert(b64decode(ca_cert), 'nginx-server.crt')
-
+        if "ca_cert" in config.keys() and self._stored.config["ca_cert"]:
+            ca_cert = self._stored.config["ca_cert"]
+            install_ca_cert(b64decode(ca_cert), "nginx-server.crt")
 
         self._render_config(self._stored.config)
         self._reload_config()
-
-
-
-
-
-
-
 
     def _render_config(self, config):
         with open("templates/nginx.conf.j2") as f:
