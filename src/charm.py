@@ -159,6 +159,8 @@ class NginxCharm(CharmBase):
         self._reload_config()
 
     def _on_config_changed(self, _):
+        logger.info(self.model.config)
+        logger.info(self._stored.config)
         for key in self.model.config:
             if key not in self._stored.config:
                 value = self.model.config[key]
@@ -182,8 +184,8 @@ class NginxCharm(CharmBase):
         self._stored.config["ssl_enabled"] = (
             "ssl_cert" in config.keys()  # noqa: W503
             and "ssl_key" in config.keys()  # noqa: W503
-            and self._stored.config["ssl_cert"]  # noqa: W503
-            and self._stored.config["ssl_key"]  # noqa: W503
+            and "ssl_cert" in self._stored.config.keys()  # noqa: W503
+            and "ssl_key" in self._stored.config.keys()  # noqa: W503
         )
 
         # write ssl certificate if present
@@ -226,5 +228,5 @@ class NginxCharm(CharmBase):
         subprocess.check_call(["service", "nginx", "restart"])
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: nocover
     main(NginxCharm)

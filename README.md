@@ -16,7 +16,7 @@ juju deploy ch:fe-staging-nginx
 ## Enable TLS
 
 TLS is enabled when the ssl_cert (certificate) and ssl_key (private key) 
-parameters are present, and ssl_ca (CA certificate) is optional. The values
+parameters are present, and ca_cert (CA certificate) is optional. The values
 must be passed as base64 encoded strings.
 
 ```
