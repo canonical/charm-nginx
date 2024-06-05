@@ -197,8 +197,8 @@ class NginxCharm(CharmBase):
             key = b64decode(self._stored.config["ssl_key"])
             write_file(key_path, key, "root", "root", 0o640)
 
-        if "ca_cert" in config.keys() and self._stored.config["ca_cert"]:
-            ca_cert = self._stored.config["ca_cert"]
+        if "ssl_ca" in config.keys() and self._stored.config["ssl_ca"]:
+            ca_cert = self._stored.config["ssl_ca"]
             install_ca_cert(b64decode(ca_cert), "nginx-server.crt")
 
         self._render_config(self._stored.config)
