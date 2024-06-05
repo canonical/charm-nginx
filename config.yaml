@@ -23,7 +23,7 @@ options:
     default:
     description: |
       base64-encoded SSL key to use with certificate specified as ssl_cert.
-  ssl_ca:
+  ca_cert:
     type: string
     default:
     description: |
