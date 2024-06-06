@@ -5,7 +5,7 @@ import random
 import subprocess
 import unittest
 from base64 import b64decode
-from unittest.mock import MagicMock, Mock, mock_open, patch
+from unittest.mock import MagicMock, Mock, patch
 from uuid import uuid4
 
 from ops.testing import Harness
