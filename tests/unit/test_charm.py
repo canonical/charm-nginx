@@ -99,10 +99,11 @@ class TestCharm(unittest.TestCase):
         self.assertTrue(harness.charm._render_config.called)
         self.assertTrue(harness.charm._reload_config.called)
 
+    @patch("os.makedirs")
     @patch("os.unlink")
     @patch("os.remove")
     @patch("subprocess.check_output")
-    def test_install(self, mock_subproc, os_remove, os_unlink):
+    def test_install(self, mock_subproc, os_remove, os_unlink, mock_makedirs):
         process_mock = Mock()
         mock_subproc.return_value = process_mock
         harness = Harness(NginxCharm)
