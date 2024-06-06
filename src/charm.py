@@ -77,6 +77,98 @@ def _create_path():
         os.chmod(path, 0o755)
 
 
+def write_file(path, content, owner="root", group="root", perms=0o444):
+    """Create or overwrite a file with the contents of a byte string."""
+    uid = pwd.getpwnam(owner).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+    # lets see if we can grab the file and compare the context, to avoid doing
+    # a write.
+    existing_content = None
+    existing_uid, existing_gid, existing_perms = None, None, None
+    try:
+        with open(path, "rb") as target:
+            existing_content = target.read()
+        stat = os.stat(path)
+        existing_uid, existing_gid, existing_perms = (
+            stat.st_uid,
+            stat.st_gid,
+            stat.st_mode,
+        )
+    except Exception:
+        pass
+    if content != existing_content:
+        logger.debug("Writing file {} {}:{} {:o}".format(path, owner, group, perms))
+        with open(path, "wb") as target:
+            os.fchown(target.fileno(), uid, gid)
+            os.fchmod(target.fileno(), perms)
+            # if six.PY3 and isinstance(content, six.string_types):
+            #     content = content.encode('UTF-8')
+            target.write(content)
+        return
+    # the contents were the same, but we might still need to change the
+    # ownership or permissions.
+    if existing_uid != uid:
+        logger.debug(
+            "Changing uid on already existing content: {} -> {}".format(
+                existing_uid, uid
+            )
+        )
+        os.chown(path, uid, -1)
+    if existing_gid != gid:
+        logger.debug(
+            "Changing gid on already existing content: {} -> {}".format(
+                existing_gid, gid
+            )
+        )
+        os.chown(path, -1, gid)
+    if existing_perms != perms:
+        logger.debug(
+            "Changing permissions on existing content: {} -> {}".format(
+                existing_perms, perms
+            )
+        )
+        os.chmod(path, perms)
+
+
+def install_ca_cert(ca_cert, name=None):
+    """
+    Install the given cert as a trusted CA.
+
+    The ``name`` is the stem of the filename where the cert is written, and if
+    not provided, it will default to ``juju-{charm_name}``.
+
+    If the cert is empty or None, or is unchanged, nothing is done.
+    """
+    if not ca_cert:
+        return
+    if not isinstance(ca_cert, bytes):
+        ca_cert = ca_cert.encode("utf8")
+    # if not name:
+    #     name = 'juju-{}'.format(charm_name())
+    cert_file = "/usr/local/share/ca-certificates/{}.crt".format(name)
+    new_hash = hashlib.md5(ca_cert).hexdigest()
+    if file_hash(cert_file) == new_hash:
+        return
+    logger.info("Installing new CA cert at: {}".format(cert_file))
+    write_file(cert_file, ca_cert)
+    subprocess.check_call(["update-ca-certificates", "--fresh"])
+
+
+def file_hash(path, hash_type="md5"):
+    """Generate a hash checksum of the contents of 'path' or None if not found.
+
+    :param str hash_type: Any hash alrgorithm supported by :mod:`hashlib`,
+                        such as md5, sha1, sha256, sha512, etc.
+    """
+    if os.path.exists(path):
+        h = getattr(hashlib, hash_type)()
+        with open(path, "rb") as source:
+            h.update(source.read())
+        return h.hexdigest()
+    else:
+        return None
+
+
 class NginxCharm(CharmBase):
     _stored = StoredState()
 
