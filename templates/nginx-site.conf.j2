@@ -1,7 +1,7 @@
 server {
     listen       {{config['port']}};
 
-    {% if config['ssl_enabled'] %}
+    {% if config['ssl_cert'] and config['ssl_key'] %}
     ssl on;
     ssl_certificate ssl/server.crt;
     ssl_certificate_key ssl/server.key;
