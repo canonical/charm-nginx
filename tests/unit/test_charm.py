@@ -99,7 +99,7 @@ class TestCharm(unittest.TestCase):
         self.assertTrue(harness.charm._render_config.called)
         self.assertTrue(harness.charm._reload_config.called)
 
-    @patch("charm._create_path")
+    @patch("charm.create_path")
     @patch("os.unlink")
     @patch("os.remove")
     @patch("subprocess.check_output")
