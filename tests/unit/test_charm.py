@@ -99,10 +99,11 @@ class TestCharm(unittest.TestCase):
         self.assertTrue(harness.charm._render_config.called)
         self.assertTrue(harness.charm._reload_config.called)
 
+    @patch("charm._create_path")
     @patch("os.unlink")
     @patch("os.remove")
     @patch("subprocess.check_output")
-    def test_install(self, mock_subproc, os_remove, os_unlink):
+    def test_install(self, mock_subproc, os_remove, os_unlink, mock_crate_path):
         process_mock = Mock()
         mock_subproc.return_value = process_mock
         harness = Harness(NginxCharm)
@@ -115,6 +116,7 @@ class TestCharm(unittest.TestCase):
         self.assertTrue(os_unlink.called)
         assert mock_subproc.call_args_list[0] == call(["apt", "install", "-y", "nginx"])
         assert mock_subproc.call_args_list[1] == call(["service", "nginx", "stop"])
+        mock_crate_path.assert_called_once()
 
     @patch("subprocess.check_call")
     def test_update_status_running(self, mock_subproc):
