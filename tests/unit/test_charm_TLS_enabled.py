@@ -5,12 +5,13 @@ import random
 import subprocess
 import unittest
 from base64 import b64decode
-from unittest.mock import MagicMock, Mock, mock_open, patch
+from unittest.mock import MagicMock, Mock, patch
 from uuid import uuid4
 
 from ops.testing import Harness
 
-from charm import NginxCharm, _create_path, _install_ca_cert, _write_file
+from charm import NginxCharm
+from utils import CAInstallError, create_path, install_ca_cert, write_file
 
 SSL_CONFIG = {
     "host": str(uuid4()),
@@ -23,8 +24,8 @@ STORED_CONFIG = {"host": str(uuid4()), "port": random.randint(10, 20), "publishe
 
 
 class TestCharmTLS(unittest.TestCase):
-    @patch("charm._install_ca_cert")
-    @patch("charm._write_file")
+    @patch("charm.install_ca_cert")
+    @patch("charm.write_file")
     def test_config_changed(
         self,
         mock_write_file,
@@ -35,7 +36,18 @@ class TestCharmTLS(unittest.TestCase):
         harness.begin()
         harness.charm._render_config = Mock()
         harness.charm._reload_config = Mock()
-        harness.update_config(SSL_CONFIG)
+
+        mock_install_ca_cert.side_effect = CAInstallError(
+            "Failed to update CA certificates"
+        )
+
+        with self.assertLogs(level="ERROR") as log:
+            harness.update_config(SSL_CONFIG)
+
+        self.assertIn(
+            "CA installation error: Failed to update CA certificates", log.output[0]
+        )
+
         mock_write_file.assert_any_call(
             "/etc/nginx/ssl/server.crt",
             b64decode("dGVzdF9jZXJ0=="),
@@ -79,7 +91,7 @@ class TestUtil(unittest.TestCase):
         content = b"test content"
         perms = 0o644
 
-        _write_file(path, content, perms)
+        write_file(path, content, perms)
 
         mock_tempfile_instance.write.assert_called_once_with(content)
         mock_tempfile_instance.flush.assert_called_once()
@@ -92,13 +104,16 @@ class TestUtil(unittest.TestCase):
         mock_rename.assert_called_once_with(mock_tempfile_instance.name, path)
 
     @patch("subprocess.check_call")
-    @patch("charm._write_file")
+    @patch("utils.write_file")
     def test_install_ca_cert(self, mock_write_file, mock_check_call):
         ca_cert = "test_cert"
         mock_check_call.side_effect = subprocess.CalledProcessError(
             1, "update-ca-certificates"
         )
-        _install_ca_cert(ca_cert)
+        with self.assertRaises(CAInstallError) as context:
+            install_ca_cert(ca_cert)
+        self.assertEqual(str(context.exception), "Failed to update CA certificates")
+
         mock_write_file.assert_called_once_with(
             "/usr/local/share/ca-certificates/nginx-server.crt", ca_cert, 0o444
         )
@@ -108,10 +123,10 @@ class TestUtil(unittest.TestCase):
     @patch("os.chown")
     @patch("os.chmod")
     @patch("os.path.exists")
-    def test_create_path(self, mock_path_exists, mock_chmod, mock_chown, mock_makedirs):
+    def testcreate_path(self, mock_path_exists, mock_chmod, mock_chown, mock_makedirs):
         mock_path_exists.return_value = False
 
-        _create_path()
+        create_path()
         mock_path_exists.assert_called_once_with("/etc/nginx/ssl")
         mock_makedirs.assert_called_once_with("/etc/nginx/ssl", 0o755)
         mock_chown.assert_called_once_with("/etc/nginx/ssl", 0, 0)

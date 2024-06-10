@@ -2,12 +2,9 @@
 # Copyright 2020 Ubuntu
 # See LICENSE file for licensing details.
 
-import grp
 import logging
 import os
-import pwd
 import subprocess
-import tempfile
 from base64 import b64decode
 from os.path import islink
 
@@ -17,64 +14,9 @@ from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus
 
+from utils import CAInstallError, create_path, install_ca_cert, write_file
+
 logger = logging.getLogger(__name__)
-CA_CERT_PATH = "/usr/local/share/ca-certificates/{}.crt".format("nginx-server")
-
-
-def _write_file(path: str, content: bytes, perms: int) -> None:
-    """
-    Create or overwrite a file with the contents of a byte string.
-
-    :param str path: The file path where the content should be written.
-    :param bytes content: The content to write to the file.
-    :param int perms: The file permissions to set on the created file.
-    """
-    uid = pwd.getpwnam("root").pw_uid
-    gid = grp.getgrnam("root").gr_gid
-
-    logger.debug(
-        "Writing file {} with root ownership and permissions {:o}".format(path, perms)
-    )
-
-    # Create a temporary file and replace the target file
-    # This ensures atomic file writing for safety
-    dir_name = os.path.dirname(path)
-    with tempfile.NamedTemporaryFile(dir=dir_name, delete=False) as tmp_file:
-        tmp_file.write(content)
-        tmp_file.flush()
-        os.fchown(tmp_file.fileno(), uid, gid)
-        os.fchmod(tmp_file.fileno(), perms)
-        temp_path = tmp_file.name
-
-    os.rename(temp_path, path)
-
-
-def _install_ca_cert(ca_cert: bytes):
-    """
-    Install the given cert as a trusted CA.
-
-    :param bytes ca_cert: The base64 decoded CA certificate.
-    """
-    cert_file = CA_CERT_PATH
-    logger.info("Installing new CA cert at: %s", cert_file)
-    _write_file(cert_file, ca_cert, 0o444)
-
-    # Execute the command to update the CA certificates
-    try:
-        subprocess.check_call(["update-ca-certificates", "--fresh"])
-    except subprocess.CalledProcessError as error:
-        logger.error("Failed to update CA certificates: %s", error)
-
-
-def _create_path():
-    uid = pwd.getpwnam("root").pw_uid
-    gid = grp.getgrnam("root").gr_gid
-
-    path = "/etc/nginx/ssl"
-    if not os.path.exists(path):
-        os.makedirs(path, 0o755)
-        os.chown(path, uid, gid)
-        os.chmod(path, 0o755)
 
 
 class NginxCharm(CharmBase):
@@ -105,7 +47,7 @@ class NginxCharm(CharmBase):
         subprocess.check_output(["service", "nginx", "stop"])
         os.remove("/etc/nginx/nginx.conf")
         os.unlink("/etc/nginx/sites-enabled/default")
-        _create_path()
+        create_path()
 
     def _on_publish_relation_departed(self, event):
         if event.app.name in self._stored.config["publishes"]:
@@ -129,19 +71,22 @@ class NginxCharm(CharmBase):
         for key in config:
             self._stored.config[key] = config[key]
 
-        if config.get("ssl_cert"):
-            cert_path = os.path.join("/etc/nginx/ssl", "server.crt")
-            cert = b64decode(config["ssl_cert"])
-            _write_file(cert_path, cert, 0o644)
+        try:
+            if config.get("ssl_cert"):
+                cert_path = os.path.join("/etc/nginx/ssl", "server.crt")
+                cert = b64decode(config["ssl_cert"])
+                write_file(cert_path, cert, 0o644)
 
-        if config.get("ssl_key"):
-            key_path = os.path.join("/etc/nginx/ssl", "server.key")
-            key = b64decode(config["ssl_key"])
-            _write_file(key_path, key, 0o640)
+            if config.get("ssl_key"):
+                key_path = os.path.join("/etc/nginx/ssl", "server.key")
+                key = b64decode(config["ssl_key"])
+                write_file(key_path, key, 0o640)
 
-        if config.get("ssl_ca"):
-            ca_cert = config["ssl_ca"]
-            _install_ca_cert(b64decode(ca_cert))
+            if config.get("ssl_ca"):
+                ca_cert = config["ssl_ca"]
+                install_ca_cert(b64decode(ca_cert))
+        except CAInstallError as e:
+            logger.error("CA installation error: %s", e)
 
         self._render_config(self._stored.config)
         self._reload_config()
@@ -165,7 +110,7 @@ class NginxCharm(CharmBase):
             )
 
     def _reload_config(self):
-        subprocess.check_call(["service", "nginx", "restart"])
+        subprocess.check_call(["service", "nginx", "reload"])
 
 
 if __name__ == "__main__":  # pragma: nocover
