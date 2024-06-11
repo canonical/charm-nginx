@@ -99,11 +99,24 @@ class TestCharm(unittest.TestCase):
         self.assertTrue(harness.charm._render_config.called)
         self.assertTrue(harness.charm._reload_config.called)
 
-    @patch("charm.create_path")
+    @patch("os.makedirs")
+    @patch("os.chown")
+    @patch("os.chmod")
+    @patch("os.path.exists")
     @patch("os.unlink")
     @patch("os.remove")
     @patch("subprocess.check_output")
-    def test_install(self, mock_subproc, os_remove, os_unlink, mock_crate_path):
+    def test_install(
+        self,
+        mock_subproc,
+        os_remove,
+        os_unlink,
+        mock_path_exists,
+        mock_chmod,
+        mock_chown,
+        mock_makedirs,
+    ):
+        mock_path_exists.return_value = False
         process_mock = Mock()
         mock_subproc.return_value = process_mock
         harness = Harness(NginxCharm)
@@ -116,7 +129,9 @@ class TestCharm(unittest.TestCase):
         self.assertTrue(os_unlink.called)
         assert mock_subproc.call_args_list[0] == call(["apt", "install", "-y", "nginx"])
         assert mock_subproc.call_args_list[1] == call(["service", "nginx", "stop"])
-        mock_crate_path.assert_called_once()
+        mock_makedirs.assert_called_once_with("/etc/nginx/ssl", 0o755)
+        mock_chown.assert_called_once_with("/etc/nginx/ssl", 0, 0)
+        mock_chmod.assert_called_once_with("/etc/nginx/ssl", 0o755)
 
     @patch("subprocess.check_call")
     def test_update_status_running(self, mock_subproc):
@@ -148,7 +163,7 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(harness.cleanup)
         harness.begin()
         harness.charm._reload_config()
-        assert mock_subproc.call_args == call(["service", "nginx", "reload"])
+        assert mock_subproc.call_args == call(["service", "nginx", "restart"])
 
     @patch("charm.islink")
     @patch("os.symlink")

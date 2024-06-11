@@ -11,7 +11,7 @@ from uuid import uuid4
 from ops.testing import Harness
 
 from charm import NginxCharm
-from utils import CAInstallError, create_path, install_ca_cert, write_file
+from utils import CAInstallError, atomic_write_root_file, install_ca_cert
 
 SSL_CONFIG = {
     "host": str(uuid4()),
@@ -20,12 +20,13 @@ SSL_CONFIG = {
     "ssl_key": "dGVzdF9rZXk=",  # Padded base64 strings
     "ssl_ca": "dGVzdF9jYV9jZXJ0==",
 }
+DEFAULT_CONFIG = {"host": str(uuid4()), "port": random.randint(10, 20)}
 STORED_CONFIG = {"host": str(uuid4()), "port": random.randint(10, 20), "publishes": {}}
 
 
 class TestCharmTLS(unittest.TestCase):
     @patch("charm.install_ca_cert")
-    @patch("charm.write_file")
+    @patch("charm.atomic_write_root_file")
     def test_config_changed(
         self,
         mock_write_file,
@@ -37,16 +38,7 @@ class TestCharmTLS(unittest.TestCase):
         harness.charm._render_config = Mock()
         harness.charm._reload_config = Mock()
 
-        mock_install_ca_cert.side_effect = CAInstallError(
-            "Failed to update CA certificates"
-        )
-
-        with self.assertLogs(level="ERROR") as log:
-            harness.update_config(SSL_CONFIG)
-
-        self.assertIn(
-            "CA installation error: Failed to update CA certificates", log.output[0]
-        )
+        harness.update_config(SSL_CONFIG)
 
         mock_write_file.assert_any_call(
             "/etc/nginx/ssl/server.crt",
@@ -60,6 +52,31 @@ class TestCharmTLS(unittest.TestCase):
         )
         mock_install_ca_cert.assert_called_with(b64decode("dGVzdF9jYV9jZXJ0"))
 
+    @patch(
+        "charm.os.path.exists",
+        side_effect=lambda path: path
+        in ["/etc/nginx/ssl/server.crt", "/etc/nginx/ssl/server.key"],
+    )
+    @patch("charm.os.remove")
+    @patch("charm.install_ca_cert")
+    @patch("charm.atomic_write_root_file")
+    def test_config_changed_remove_files(
+        self, mock_write_file, mock_install_ca_cert, mock_remove, mock_path_exists
+    ):
+        harness = Harness(NginxCharm)
+        self.addCleanup(harness.cleanup)
+        harness.begin()
+        harness.charm._render_config = Mock()
+        harness.charm._reload_config = Mock()
+
+        # Update config without ssl_cert and ssl_key
+        harness.update_config(DEFAULT_CONFIG)
+
+        mock_remove.assert_any_call("/etc/nginx/ssl/server.crt")
+        mock_remove.assert_any_call("/etc/nginx/ssl/server.key")
+        mock_write_file.assert_not_called()
+        mock_install_ca_cert.assert_not_called()
+
 
 class TestUtil(unittest.TestCase):
     @patch("tempfile.NamedTemporaryFile")
@@ -68,7 +85,7 @@ class TestUtil(unittest.TestCase):
     @patch("os.fchown")
     @patch("pwd.getpwnam")
     @patch("grp.getgrnam")
-    def test_write_file(
+    def test_atomic_write_root_file(
         self,
         mock_getgrnam,
         mock_getpwnam,
@@ -91,7 +108,7 @@ class TestUtil(unittest.TestCase):
         content = b"test content"
         perms = 0o644
 
-        write_file(path, content, perms)
+        atomic_write_root_file(path, content, perms)
 
         mock_tempfile_instance.write.assert_called_once_with(content)
         mock_tempfile_instance.flush.assert_called_once()
@@ -104,7 +121,7 @@ class TestUtil(unittest.TestCase):
         mock_rename.assert_called_once_with(mock_tempfile_instance.name, path)
 
     @patch("subprocess.check_call")
-    @patch("utils.write_file")
+    @patch("utils.atomic_write_root_file")
     def test_install_ca_cert(self, mock_write_file, mock_check_call):
         ca_cert = "test_cert"
         mock_check_call.side_effect = subprocess.CalledProcessError(
@@ -118,16 +135,3 @@ class TestUtil(unittest.TestCase):
             "/usr/local/share/ca-certificates/nginx-server.crt", ca_cert, 0o444
         )
         mock_check_call.assert_called_once_with(["update-ca-certificates", "--fresh"])
-
-    @patch("os.makedirs")
-    @patch("os.chown")
-    @patch("os.chmod")
-    @patch("os.path.exists")
-    def testcreate_path(self, mock_path_exists, mock_chmod, mock_chown, mock_makedirs):
-        mock_path_exists.return_value = False
-
-        create_path()
-        mock_path_exists.assert_called_once_with("/etc/nginx/ssl")
-        mock_makedirs.assert_called_once_with("/etc/nginx/ssl", 0o755)
-        mock_chown.assert_called_once_with("/etc/nginx/ssl", 0, 0)
-        mock_chmod.assert_called_once_with("/etc/nginx/ssl", 0o755)

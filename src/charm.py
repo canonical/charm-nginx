@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2020 Ubuntu
+# Copyright 2020-2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 import logging
@@ -14,9 +14,10 @@ from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus
 
-from utils import CAInstallError, create_path, install_ca_cert, write_file
+from utils import atomic_write_root_file, install_ca_cert
 
 logger = logging.getLogger(__name__)
+SSL_PATH = "/etc/nginx/ssl"
 
 
 class NginxCharm(CharmBase):
@@ -47,7 +48,11 @@ class NginxCharm(CharmBase):
         subprocess.check_output(["service", "nginx", "stop"])
         os.remove("/etc/nginx/nginx.conf")
         os.unlink("/etc/nginx/sites-enabled/default")
-        create_path()
+
+        if not os.path.exists(SSL_PATH):
+            os.makedirs(SSL_PATH, 0o755)
+            os.chown(SSL_PATH, 0, 0)
+            os.chmod(SSL_PATH, 0o755)
 
     def _on_publish_relation_departed(self, event):
         if event.app.name in self._stored.config["publishes"]:
@@ -71,22 +76,23 @@ class NginxCharm(CharmBase):
         for key in config:
             self._stored.config[key] = config[key]
 
-        try:
-            if config.get("ssl_cert"):
-                cert_path = os.path.join("/etc/nginx/ssl", "server.crt")
-                cert = b64decode(config["ssl_cert"])
-                write_file(cert_path, cert, 0o644)
+        ssl_cert_path = "/etc/nginx/ssl/server.crt"
+        if config.get("ssl_cert"):
+            atomic_write_root_file(ssl_cert_path, b64decode(config["ssl_cert"]), 0o644)
+        else:
+            if os.path.exists(ssl_cert_path):
+                os.remove(ssl_cert_path)
 
-            if config.get("ssl_key"):
-                key_path = os.path.join("/etc/nginx/ssl", "server.key")
-                key = b64decode(config["ssl_key"])
-                write_file(key_path, key, 0o640)
+        ssl_key_path = "/etc/nginx/ssl/server.key"
+        if config.get("ssl_key"):
+            atomic_write_root_file(ssl_key_path, b64decode(config["ssl_key"]), 0o640)
+        else:
+            if os.path.exists(ssl_key_path):
+                os.remove(ssl_key_path)
 
-            if config.get("ssl_ca"):
-                ca_cert = config["ssl_ca"]
-                install_ca_cert(b64decode(ca_cert))
-        except CAInstallError as e:
-            logger.error("CA installation error: %s", e)
+        if config.get("ssl_ca"):
+            ca_cert = config["ssl_ca"]
+            install_ca_cert(b64decode(ca_cert))
 
         self._render_config(self._stored.config)
         self._reload_config()
@@ -110,7 +116,7 @@ class NginxCharm(CharmBase):
             )
 
     def _reload_config(self):
-        subprocess.check_call(["service", "nginx", "reload"])
+        subprocess.check_call(["service", "nginx", "restart"])
 
 
 if __name__ == "__main__":  # pragma: nocover
