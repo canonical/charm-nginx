@@ -148,7 +148,7 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(harness.cleanup)
         harness.begin()
         harness.charm._reload_config()
-        assert mock_subproc.call_args == call(["service", "nginx", "reload"])
+        assert mock_subproc.call_args == call(["nginx", "-s", "reload"])
 
     @patch("charm.islink")
     @patch("os.symlink")

@@ -110,7 +110,7 @@ class NginxCharm(CharmBase):
             )
 
     def _reload_config(self):
-        subprocess.check_call(["service", "nginx", "reload"])
+        subprocess.check_call(["nginx", "-s", "reload"])
 
 
 if __name__ == "__main__":  # pragma: nocover
