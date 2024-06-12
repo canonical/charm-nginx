@@ -14,10 +14,11 @@ from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus
 
-from utils import atomic_write_root_file, install_ca_cert
+from utils import atomic_write_root_file
 
 logger = logging.getLogger(__name__)
 SSL_PATH = "/etc/nginx/ssl"
+CA_CERT_PATH = "/usr/local/share/ca-certificates/nginx-server.crt"
 
 
 class NginxCharm(CharmBase):
@@ -49,10 +50,9 @@ class NginxCharm(CharmBase):
         os.remove("/etc/nginx/nginx.conf")
         os.unlink("/etc/nginx/sites-enabled/default")
 
-        if not os.path.exists(SSL_PATH):
-            os.makedirs(SSL_PATH, 0o755)
-            os.chown(SSL_PATH, 0, 0)
-            os.chmod(SSL_PATH, 0o755)
+        os.makedirs(SSL_PATH, 0o755, exist_ok=True)
+        os.chown(SSL_PATH, 0, 0)
+        os.chmod(SSL_PATH, 0o755)
 
     def _on_publish_relation_departed(self, event):
         if event.app.name in self._stored.config["publishes"]:
@@ -71,7 +71,7 @@ class NginxCharm(CharmBase):
         self._render_config(self._stored.config)
         self._reload_config()
 
-    def _on_config_changed(self, _):
+    def _on_config_changed(self, _):  # noqa: C901
         config = self.model.config
         for key in config:
             self._stored.config[key] = config[key]
@@ -80,19 +80,32 @@ class NginxCharm(CharmBase):
         if config.get("ssl_cert"):
             atomic_write_root_file(ssl_cert_path, b64decode(config["ssl_cert"]), 0o644)
         else:
-            if os.path.exists(ssl_cert_path):
+            try:
                 os.remove(ssl_cert_path)
+            except FileNotFoundError:
+                pass
 
         ssl_key_path = "/etc/nginx/ssl/server.key"
         if config.get("ssl_key"):
             atomic_write_root_file(ssl_key_path, b64decode(config["ssl_key"]), 0o640)
         else:
-            if os.path.exists(ssl_key_path):
+            try:
                 os.remove(ssl_key_path)
+            except FileNotFoundError:
+                pass
 
         if config.get("ssl_ca"):
             ca_cert = config["ssl_ca"]
-            install_ca_cert(b64decode(ca_cert))
+            atomic_write_root_file(CA_CERT_PATH, ca_cert, 0o444)
+        else:
+            try:
+                os.remove(CA_CERT_PATH)
+            except FileNotFoundError:
+                pass
+        try:
+            subprocess.check_call(["update-ca-certificates", "--fresh"])
+        except subprocess.CalledProcessError:
+            self.model.unit.status = BlockedStatus("Failed to update CA certificates")
 
         self._render_config(self._stored.config)
         self._reload_config()

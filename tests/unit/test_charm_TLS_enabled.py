@@ -11,7 +11,7 @@ from uuid import uuid4
 from ops.testing import Harness
 
 from charm import NginxCharm
-from utils import CAInstallError, atomic_write_root_file, install_ca_cert
+from utils import atomic_write_root_file
 
 SSL_CONFIG = {
     "host": str(uuid4()),
@@ -25,13 +25,12 @@ STORED_CONFIG = {"host": str(uuid4()), "port": random.randint(10, 20), "publishe
 
 
 class TestCharmTLS(unittest.TestCase):
-    @patch("charm.install_ca_cert")
+    @patch("subprocess.check_call")
     @patch("charm.atomic_write_root_file")
-    def test_config_changed(
-        self,
-        mock_write_file,
-        mock_install_ca_cert,
-    ):
+    def test_config_changed(self, mock_write_file, mock_check_call):
+        mock_check_call.side_effect = subprocess.CalledProcessError(
+            1, "update-ca-certificates"
+        )
         harness = Harness(NginxCharm)
         self.addCleanup(harness.cleanup)
         harness.begin()
@@ -50,7 +49,14 @@ class TestCharmTLS(unittest.TestCase):
             b64decode("dGVzdF9rZXk="),
             0o640,
         )
-        mock_install_ca_cert.assert_called_with(b64decode("dGVzdF9jYV9jZXJ0"))
+
+        mock_write_file.assert_any_call(
+            "/usr/local/share/ca-certificates/nginx-server.crt",
+            "dGVzdF9jYV9jZXJ0==",
+            0o444,
+        )
+
+        mock_check_call.assert_called_once_with(["update-ca-certificates", "--fresh"])
 
     @patch(
         "charm.os.path.exists",
@@ -58,10 +64,9 @@ class TestCharmTLS(unittest.TestCase):
         in ["/etc/nginx/ssl/server.crt", "/etc/nginx/ssl/server.key"],
     )
     @patch("charm.os.remove")
-    @patch("charm.install_ca_cert")
     @patch("charm.atomic_write_root_file")
     def test_config_changed_remove_files(
-        self, mock_write_file, mock_install_ca_cert, mock_remove, mock_path_exists
+        self, mock_write_file, mock_remove, mock_path_exists
     ):
         harness = Harness(NginxCharm)
         self.addCleanup(harness.cleanup)
@@ -75,7 +80,6 @@ class TestCharmTLS(unittest.TestCase):
         mock_remove.assert_any_call("/etc/nginx/ssl/server.crt")
         mock_remove.assert_any_call("/etc/nginx/ssl/server.key")
         mock_write_file.assert_not_called()
-        mock_install_ca_cert.assert_not_called()
 
 
 class TestUtil(unittest.TestCase):
@@ -119,19 +123,3 @@ class TestUtil(unittest.TestCase):
         mock_fchmod.assert_called_once_with(mock_tempfile_instance.fileno(), perms)
 
         mock_rename.assert_called_once_with(mock_tempfile_instance.name, path)
-
-    @patch("subprocess.check_call")
-    @patch("utils.atomic_write_root_file")
-    def test_install_ca_cert(self, mock_write_file, mock_check_call):
-        ca_cert = "test_cert"
-        mock_check_call.side_effect = subprocess.CalledProcessError(
-            1, "update-ca-certificates"
-        )
-        with self.assertRaises(CAInstallError) as context:
-            install_ca_cert(ca_cert)
-        self.assertEqual(str(context.exception), "Failed to update CA certificates")
-
-        mock_write_file.assert_called_once_with(
-            "/usr/local/share/ca-certificates/nginx-server.crt", ca_cert, 0o444
-        )
-        mock_check_call.assert_called_once_with(["update-ca-certificates", "--fresh"])

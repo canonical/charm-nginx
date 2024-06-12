@@ -18,18 +18,22 @@ STORED_CONFIG = {"host": str(uuid4()), "port": random.randint(10, 20), "publishe
 
 
 class TestCharm(unittest.TestCase):
-    def test_config_changed(self):
+    @patch("subprocess.check_call", side_effect=subprocess.CalledProcessError(0, ""))
+    def test_config_changed(self, mock_subproc):
         harness = Harness(NginxCharm)
         self.addCleanup(harness.cleanup)
         harness.begin()
         harness.charm._render_config = Mock()
         harness.charm._reload_config = Mock()
-        # default_config = DEFAULT_CONFIG
         harness.update_config(DEFAULT_CONFIG)
         default_config = {**DEFAULT_CONFIG, "publishes": {}}
         self.assertEqual(harness.charm._stored.config, default_config)
         self.assertTrue(harness.charm._render_config.called)
         self.assertTrue(harness.charm._reload_config.called)
+        assert mock_subproc.call_args == call(["update-ca-certificates", "--fresh"])
+        assert harness.model.unit.status == BlockedStatus(
+            "Failed to update CA certificates"
+        )
 
     def test_publish_relation_joined(self):
         harness = Harness(NginxCharm)
@@ -129,7 +133,7 @@ class TestCharm(unittest.TestCase):
         self.assertTrue(os_unlink.called)
         assert mock_subproc.call_args_list[0] == call(["apt", "install", "-y", "nginx"])
         assert mock_subproc.call_args_list[1] == call(["service", "nginx", "stop"])
-        mock_makedirs.assert_called_once_with("/etc/nginx/ssl", 0o755)
+        mock_makedirs.assert_called_once_with("/etc/nginx/ssl", 0o755, exist_ok=True)
         mock_chown.assert_called_once_with("/etc/nginx/ssl", 0, 0)
         mock_chmod.assert_called_once_with("/etc/nginx/ssl", 0o755)
 

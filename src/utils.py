@@ -1,14 +1,9 @@
 import logging
 import os
-import subprocess
 import tempfile
 
 logger = logging.getLogger(__name__)
 CA_CERT_PATH = "/usr/local/share/ca-certificates/nginx-server.crt"
-
-
-class CAInstallError(Exception):
-    """Custom exception for CA certificate installation errors."""
 
 
 def atomic_write_root_file(path: str, content: bytes, perms: int) -> None:
@@ -34,19 +29,3 @@ def atomic_write_root_file(path: str, content: bytes, perms: int) -> None:
         temp_path = tmp_file.name
 
     os.rename(temp_path, path)
-
-
-def install_ca_cert(ca_cert: bytes):
-    """
-    Install the given cert as a trusted CA.
-
-    :param bytes ca_cert: The base64 decoded CA certificate.
-    """
-    logger.info("Installing new CA cert at: %s", CA_CERT_PATH)
-    atomic_write_root_file(CA_CERT_PATH, ca_cert, 0o444)
-
-    # Execute the command to update the CA certificates
-    try:
-        subprocess.check_call(["update-ca-certificates", "--fresh"])
-    except subprocess.CalledProcessError as error:
-        raise CAInstallError("Failed to update CA certificates") from error
