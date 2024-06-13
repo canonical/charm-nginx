@@ -11,7 +11,7 @@ from uuid import uuid4
 from ops.testing import Harness
 
 from charm import NginxCharm
-from utils import atomic_write_root_file, force_remove
+from utils import atomic_write_root_file
 
 SSL_CONFIG = {
     "host": str(uuid4()),
