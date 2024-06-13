@@ -11,7 +11,7 @@ from uuid import uuid4
 from ops.testing import Harness
 
 from charm import NginxCharm
-from utils import atomic_write_root_file
+from utils import atomic_write_root_file, force_remove
 
 SSL_CONFIG = {
     "host": str(uuid4()),
@@ -52,7 +52,7 @@ class TestCharmTLS(unittest.TestCase):
 
         mock_write_file.assert_any_call(
             "/usr/local/share/ca-certificates/nginx-server.crt",
-            "dGVzdF9jYV9jZXJ0==",
+            b64decode("dGVzdF9jYV9jZXJ0=="),
             0o444,
         )
 
@@ -63,7 +63,7 @@ class TestCharmTLS(unittest.TestCase):
         side_effect=lambda path: path
         in ["/etc/nginx/ssl/server.crt", "/etc/nginx/ssl/server.key"],
     )
-    @patch("charm.os.remove")
+    @patch("charm.force_remove")
     @patch("charm.atomic_write_root_file")
     def test_config_changed_remove_files(
         self, mock_write_file, mock_remove, mock_path_exists

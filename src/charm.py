@@ -14,7 +14,7 @@ from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus
 
-from utils import atomic_write_root_file
+from utils import atomic_write_root_file, force_remove
 
 logger = logging.getLogger(__name__)
 SSL_PATH = "/etc/nginx/ssl"
@@ -71,7 +71,7 @@ class NginxCharm(CharmBase):
         self._render_config(self._stored.config)
         self._reload_config()
 
-    def _on_config_changed(self, _):  # noqa: C901
+    def _on_config_changed(self, _):
         config = self.model.config
         for key in config:
             self._stored.config[key] = config[key]
@@ -80,27 +80,19 @@ class NginxCharm(CharmBase):
         if config.get("ssl_cert"):
             atomic_write_root_file(ssl_cert_path, b64decode(config["ssl_cert"]), 0o644)
         else:
-            try:
-                os.remove(ssl_cert_path)
-            except FileNotFoundError:
-                pass
+            force_remove(ssl_cert_path)
 
         ssl_key_path = "/etc/nginx/ssl/server.key"
         if config.get("ssl_key"):
             atomic_write_root_file(ssl_key_path, b64decode(config["ssl_key"]), 0o640)
         else:
-            try:
-                os.remove(ssl_key_path)
-            except FileNotFoundError:
-                pass
+            force_remove(ssl_key_path)
 
         if config.get("ssl_ca"):
             atomic_write_root_file(CA_CERT_PATH, b64decode(config["ssl_ca"]), 0o444)
         else:
-            try:
-                os.remove(CA_CERT_PATH)
-            except FileNotFoundError:
-                pass
+            force_remove(CA_CERT_PATH)
+
         try:
             subprocess.check_call(["update-ca-certificates", "--fresh"])
         except subprocess.CalledProcessError:

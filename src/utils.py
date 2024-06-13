@@ -29,3 +29,11 @@ def atomic_write_root_file(path: str, content: bytes, perms: int) -> None:
         temp_path = tmp_file.name
 
     os.rename(temp_path, path)
+
+
+def force_remove(path: str):
+    """Delete a file, ignoring errors if file didn't exist."""
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
