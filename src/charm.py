@@ -95,8 +95,7 @@ class NginxCharm(CharmBase):
                 pass
 
         if config.get("ssl_ca"):
-            ca_cert = config["ssl_ca"]
-            atomic_write_root_file(CA_CERT_PATH, ca_cert, 0o444)
+            atomic_write_root_file(CA_CERT_PATH, b64decode(config["ssl_ca"]), 0o444)
         else:
             try:
                 os.remove(CA_CERT_PATH)
