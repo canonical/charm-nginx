@@ -7,6 +7,7 @@ import os
 import subprocess
 from base64 import b64decode
 from os.path import islink
+from pathlib import Path
 
 from jinja2 import Template
 from ops.charm import CharmBase
@@ -14,11 +15,13 @@ from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus
 
-from utils import atomic_write_root_file, force_remove
+from utils import atomic_write_root_file
 
 logger = logging.getLogger(__name__)
-SSL_PATH = "/etc/nginx/ssl"
+SSL_FOLDER_PATH = "/etc/nginx/ssl"
 CA_CERT_PATH = "/usr/local/share/ca-certificates/nginx-server.crt"
+SSL_CERT_PATH = "/etc/nginx/ssl/server.crt"
+SSL_KEY_PATH = "/etc/nginx/ssl/server.key"
 
 
 class NginxCharm(CharmBase):
@@ -50,9 +53,9 @@ class NginxCharm(CharmBase):
         os.remove("/etc/nginx/nginx.conf")
         os.unlink("/etc/nginx/sites-enabled/default")
 
-        os.makedirs(SSL_PATH, 0o755, exist_ok=True)
-        os.chown(SSL_PATH, 0, 0)
-        os.chmod(SSL_PATH, 0o755)
+        os.makedirs(SSL_FOLDER_PATH, 0o755, exist_ok=True)
+        os.chown(SSL_FOLDER_PATH, 0, 0)
+        os.chmod(SSL_FOLDER_PATH, 0o755)
 
     def _on_publish_relation_departed(self, event):
         if event.app.name in self._stored.config["publishes"]:
@@ -76,22 +79,26 @@ class NginxCharm(CharmBase):
         for key in config:
             self._stored.config[key] = config[key]
 
-        ssl_cert_path = "/etc/nginx/ssl/server.crt"
-        if config.get("ssl_cert"):
-            atomic_write_root_file(ssl_cert_path, b64decode(config["ssl_cert"]), 0o644)
-        else:
-            force_remove(ssl_cert_path)
+        ssl_cert_path = Path(SSL_CERT_PATH)
+        ssl_key_path = Path(SSL_KEY_PATH)
+        ca_cert_path = Path(CA_CERT_PATH)
 
-        ssl_key_path = "/etc/nginx/ssl/server.key"
-        if config.get("ssl_key"):
-            atomic_write_root_file(ssl_key_path, b64decode(config["ssl_key"]), 0o640)
+        if config.get("ssl_cert") and config.get("ssl_key"):
+            atomic_write_root_file(SSL_CERT_PATH, b64decode(config["ssl_cert"]), 0o640)
+            atomic_write_root_file(SSL_KEY_PATH, b64decode(config["ssl_key"]), 0o640)
+        elif config.get("ssl_cert") or config.get("ssl_key"):
+            self.model.unit.status = BlockedStatus(
+                "Both ssl_cert and ssl_key must be configured"
+            )
+            return
         else:
-            force_remove(ssl_key_path)
+            ssl_cert_path.unlink(missing_ok=True)
+            ssl_key_path.unlink(missing_ok=True)
 
         if config.get("ssl_ca"):
             atomic_write_root_file(CA_CERT_PATH, b64decode(config["ssl_ca"]), 0o444)
         else:
-            force_remove(CA_CERT_PATH)
+            ca_cert_path.unlink(missing_ok=True)
 
         try:
             subprocess.check_call(["update-ca-certificates", "--fresh"])

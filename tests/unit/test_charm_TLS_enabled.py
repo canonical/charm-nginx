@@ -8,6 +8,7 @@ from base64 import b64decode
 from unittest.mock import MagicMock, Mock, patch
 from uuid import uuid4
 
+from ops.model import BlockedStatus
 from ops.testing import Harness
 
 from charm import NginxCharm
@@ -42,7 +43,7 @@ class TestCharmTLS(unittest.TestCase):
         mock_write_file.assert_any_call(
             "/etc/nginx/ssl/server.crt",
             b64decode("dGVzdF9jZXJ0=="),
-            0o644,
+            0o640,
         )
         mock_write_file.assert_any_call(
             "/etc/nginx/ssl/server.key",
@@ -63,10 +64,10 @@ class TestCharmTLS(unittest.TestCase):
         side_effect=lambda path: path
         in ["/etc/nginx/ssl/server.crt", "/etc/nginx/ssl/server.key"],
     )
-    @patch("charm.force_remove")
+    @patch("charm.Path.unlink")
     @patch("charm.atomic_write_root_file")
     def test_config_changed_remove_files(
-        self, mock_write_file, mock_remove, mock_path_exists
+        self, mock_write_file, mock_unlink, mock_path_exists
     ):
         harness = Harness(NginxCharm)
         self.addCleanup(harness.cleanup)
@@ -77,9 +78,34 @@ class TestCharmTLS(unittest.TestCase):
         # Update config without ssl_cert and ssl_key
         harness.update_config(DEFAULT_CONFIG)
 
-        mock_remove.assert_any_call("/etc/nginx/ssl/server.crt")
-        mock_remove.assert_any_call("/etc/nginx/ssl/server.key")
+        mock_unlink.assert_any_call(missing_ok=True)
+        mock_unlink.assert_any_call(missing_ok=True)
         mock_write_file.assert_not_called()
+
+    @patch("subprocess.check_call")
+    @patch("charm.atomic_write_root_file")
+    def test_config_changed_block_status(self, mock_write_file, mock_check_call):
+        harness = Harness(NginxCharm)
+        self.addCleanup(harness.cleanup)
+        harness.begin()
+        harness.charm._render_config = Mock()
+        harness.charm._reload_config = Mock()
+
+        harness.update_config({"ssl_cert": "dGVzdF9jZXJ0=="})
+
+        self.assertIsInstance(harness.charm.model.unit.status, BlockedStatus)
+        self.assertEqual(
+            str(harness.charm.model.unit.status),
+            "BlockedStatus('Both ssl_cert and ssl_key must be configured')",
+        )
+
+        harness.update_config({"ssl_key": "dGVzdF9rZXk="})
+
+        self.assertIsInstance(harness.charm.model.unit.status, BlockedStatus)
+        self.assertEqual(
+            str(harness.charm.model.unit.status),
+            "BlockedStatus('Both ssl_cert and ssl_key must be configured')",
+        )
 
 
 class TestUtil(unittest.TestCase):
