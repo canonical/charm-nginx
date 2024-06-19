@@ -4,7 +4,6 @@
 import random
 import subprocess
 import unittest
-from base64 import b64decode
 from unittest.mock import MagicMock, Mock, patch
 from uuid import uuid4
 
@@ -42,18 +41,18 @@ class TestCharmTLS(unittest.TestCase):
 
         mock_write_file.assert_any_call(
             "/etc/nginx/ssl/server.crt",
-            b64decode("dGVzdF9jZXJ0=="),
+            b"test_cert",
             0o640,
         )
         mock_write_file.assert_any_call(
             "/etc/nginx/ssl/server.key",
-            b64decode("dGVzdF9rZXk="),
+            b"test_key",
             0o640,
         )
 
         mock_write_file.assert_any_call(
             "/usr/local/share/ca-certificates/nginx-server.crt",
-            b64decode("dGVzdF9jYV9jZXJ0=="),
+            b"test_ca_cert",
             0o444,
         )
 
