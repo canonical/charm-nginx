@@ -127,7 +127,16 @@ class NginxCharm(CharmBase):
             )
 
     def _reload_config(self):
-        subprocess.check_call(["service", "nginx", "restart"])
+        """Reload nginx service, starting it if it was not running.
+
+        - Reload instead of restart to avoid downtime.
+        - Use systemctl `reload-or-restart` instead of just `reload,`
+          so that nginx will be started if it was not running
+          (reload will fail if the service was not running).
+
+        The function will raise `CalledProcessError` if reloading or starting fails.
+        """
+        subprocess.check_call(["systemctl", "reload-or-restart", "nginx"])
 
 
 if __name__ == "__main__":  # pragma: nocover
