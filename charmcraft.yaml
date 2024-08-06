@@ -4,9 +4,6 @@ parts:
   charm:
     charm-python-packages: [setuptools < 58]
 
-links:
-  documentation: https://discourse.charmhub.io/t/charm-nginx-doc/15015
-
 bases:
     - build-on:
         - name: ubuntu
