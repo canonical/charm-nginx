@@ -3,7 +3,7 @@
 # This file is managed by bootstack-charms-spec and should not be modified
 # within individual charm repos. https://launchpad.net/bootstack-charms-spec
 
-charm=$(grep -E "^name:" metadata.yaml | awk '{print $2}')
+charm=$(grep -E "^name:" charmcraft.yaml | awk '{print $2}')
 echo "renaming ${charm}_*.charm to ${charm}.charm"
 echo -n "pwd: "
 pwd

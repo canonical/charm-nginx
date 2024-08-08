@@ -4,18 +4,18 @@
 
 ## Description
 
-Nginx is an HTTP and reverse proxy server, a mail proxy server, and a generic TCP/UDP proxy server, originally written by Igor Sysoev. 
+Nginx is an HTTP and reverse proxy server, a mail proxy server, and a generic TCP/UDP proxy server, originally written by Igor Sysoev.
 
 ## Usage
 
 The charm can be deployed using juju:
 ```
-juju deploy cs:nginx
+juju deploy nginx
 ```
 
 ## Enable TLS
 
-TLS is enabled when the ssl_cert (certificate) and ssl_key (private key) 
+TLS is enabled when the ssl_cert (certificate) and ssl_key (private key)
 parameters are present, and ssl_ca (CA certificate) is optional. The values
 must be passed as base64 encoded strings.
 
@@ -40,18 +40,3 @@ Connection: keep-alive
 ETag: "5e9efe7d-264"
 Accept-Ranges: bytes
 ```
-
-## Developing
-
-Create and activate a virtualenv,
-and install the development requirements,
-
-    virtualenv -p python3 venv
-    source venv/bin/activate
-    pip install -r requirements-dev.txt
-
-## Testing
-
-Just run `run_tests`:
-
-    ./run_tests
