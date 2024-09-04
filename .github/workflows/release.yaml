@@ -1,16 +1,15 @@
-# This is a template `release.yaml` file for ops charms
-# This file is managed by bootstack-charms-spec and should not be modified
-# within individual charm repos. https://launchpad.net/bootstack-charms-spec
-
+# This file is centrally managed as a template file in https://github.com/canonical/solutions-engineering-automation
+# To update the file:
+# - Edit it in the canonical/solutions-engineering-automation repository.
+# - Open a PR with the changes.
+# - When the PR merges, the soleng-terraform bot will open a PR to the target repositories with the changes.
 name: Release to Edge
 
 on:
   push:
-    branches: [master, main]
-
-concurrency:
-  group: release
-  cancel-in-progress: true
+    branches: [ main ]
+  release:
+    types: [ published ]
 
 jobs:
   check:
@@ -19,11 +18,16 @@ jobs:
 
   release:
     needs: check
+    runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
+      matrix:
+        runs-on: [[ubuntu-22.04]]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Initialize lxd  # This should dropped once it's implemented on charming-actions itself. https://github.com/canonical/charming-actions/issues/140
         # revision is latest main at time of writing; using because it contains a fix to https://github.com/canonical/setup-lxd/issues/19
@@ -37,4 +41,3 @@ jobs:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           # Ensure the charm is built in an isolated environment and on the correct base in an lxd container.
           destructive-mode: false
-
