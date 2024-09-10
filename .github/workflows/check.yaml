@@ -38,7 +38,7 @@ jobs:
       fail-fast: false
       matrix:
         runs-on: [[ubuntu-22.04]]
-        test-command: ['make functional XXXTESTINGXXX 4']
+        test-command: ['make functional XXXTESTINGXXX 5']
         juju-channel: ["3.4/stable"]
     steps:
 
