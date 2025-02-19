@@ -32,9 +32,7 @@ class NginxCharm(CharmBase):
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.update_status, self._on_update_status)
-        self.framework.observe(
-            self.on.publish_relation_changed, self._on_publish_relation_changed
-        )
+        self.framework.observe(self.on.publish_relation_changed, self._on_publish_relation_changed)
         self.framework.observe(
             self.on.publish_relation_departed, self._on_publish_relation_departed
         )
@@ -87,9 +85,7 @@ class NginxCharm(CharmBase):
             atomic_write_root_file(SSL_CERT_PATH, b64decode(config["ssl_cert"]), 0o640)
             atomic_write_root_file(SSL_KEY_PATH, b64decode(config["ssl_key"]), 0o640)
         elif config.get("ssl_cert") or config.get("ssl_key"):
-            self.model.unit.status = BlockedStatus(
-                "Both ssl_cert and ssl_key must be configured"
-            )
+            self.model.unit.status = BlockedStatus("Both ssl_cert and ssl_key must be configured")
             return
         else:
             ssl_cert_path.unlink(missing_ok=True)
