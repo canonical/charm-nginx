@@ -31,9 +31,7 @@ class TestCharm(unittest.TestCase):
         self.assertTrue(harness.charm._render_config.called)
         self.assertTrue(harness.charm._reload_config.called)
         assert mock_subproc.call_args == call(["update-ca-certificates", "--fresh"])
-        assert harness.model.unit.status == BlockedStatus(
-            "Failed to update CA certificates"
-        )
+        assert harness.model.unit.status == BlockedStatus("Failed to update CA certificates")
 
     def test_publish_relation_joined(self):
         harness = Harness(NginxCharm)
@@ -167,9 +165,7 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(harness.cleanup)
         harness.begin()
         harness.charm._reload_config()
-        assert mock_subproc.call_args == call(
-            ["systemctl", "reload-or-restart", "nginx"]
-        )
+        assert mock_subproc.call_args == call(["systemctl", "reload-or-restart", "nginx"])
 
     @patch("charm.islink")
     @patch("os.symlink")

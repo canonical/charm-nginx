@@ -28,9 +28,7 @@ class TestCharmTLS(unittest.TestCase):
     @patch("subprocess.check_call")
     @patch("charm.atomic_write_root_file")
     def test_config_changed(self, mock_write_file, mock_check_call):
-        mock_check_call.side_effect = subprocess.CalledProcessError(
-            1, "update-ca-certificates"
-        )
+        mock_check_call.side_effect = subprocess.CalledProcessError(1, "update-ca-certificates")
         harness = Harness(NginxCharm)
         self.addCleanup(harness.cleanup)
         harness.begin()
@@ -65,9 +63,7 @@ class TestCharmTLS(unittest.TestCase):
     )
     @patch("charm.Path.unlink")
     @patch("charm.atomic_write_root_file")
-    def test_config_changed_remove_files(
-        self, mock_write_file, mock_unlink, mock_path_exists
-    ):
+    def test_config_changed_remove_files(self, mock_write_file, mock_unlink, mock_path_exists):
         harness = Harness(NginxCharm)
         self.addCleanup(harness.cleanup)
         harness.begin()
@@ -142,9 +138,7 @@ class TestUtil(unittest.TestCase):
         mock_tempfile_instance.write.assert_called_once_with(content)
         mock_tempfile_instance.flush.assert_called_once()
 
-        mock_fchown.assert_called_once_with(
-            mock_tempfile_instance.fileno(), mock_uid, mock_gid
-        )
+        mock_fchown.assert_called_once_with(mock_tempfile_instance.fileno(), mock_uid, mock_gid)
         mock_fchmod.assert_called_once_with(mock_tempfile_instance.fileno(), perms)
 
         mock_rename.assert_called_once_with(mock_tempfile_instance.name, path)
