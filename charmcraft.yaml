@@ -6,27 +6,13 @@ description: |
   Nginx is an HTTP and reverse proxy server, a mail proxy server, and a generic TCP/UDP proxy server, originally written by Igor Sysoev.
 parts:
   charm:
-    charm-python-packages: [setuptools < 58]
+    plugin: charm
+    source: .
 links:
   documentation: https://discourse.charmhub.io/t/charm-nginx-doc/15015
-bases:
-    - build-on:
-        - name: ubuntu
-          channel: "22.04"
-          architectures: ["amd64"]
-      run-on:
-        - name: ubuntu
-          channel: "22.04"
-          architectures:
-              - amd64
-        - name: ubuntu
-          channel: "20.04"
-          architectures:
-              - amd64
-        - name: ubuntu
-          channel: "18.04"
-          architectures:
-              - amd64
+platforms:
+  ubuntu@20.04:amd64:
+  ubuntu@22.04:amd64:
 requires:
   publish:
     interface: "web-publish"
