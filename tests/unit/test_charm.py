@@ -178,9 +178,13 @@ class TestCharm(unittest.TestCase):
         os_path_islink.return_value = False
         with patch("builtins.open", mock_open()) as mock_open_call:
             harness.charm._render_config(config)
-        assert mock_open_call.call_args_list[0] == call("templates/nginx.conf.j2")
+        assert mock_open_call.call_args_list[0] == call(
+            "templates/nginx.conf.j2", encoding="utf-8"
+        )
         assert mock_open_call.call_args_list[1] == call("/etc/nginx/nginx.conf", "wb")
-        assert mock_open_call.call_args_list[2] == call("templates/nginx-site.conf.j2")
+        assert mock_open_call.call_args_list[2] == call(
+            "templates/nginx-site.conf.j2", encoding="utf-8"
+        )
         assert mock_open_call.call_args_list[3] == call(
             "/etc/nginx/sites-available/{}".format(harness.model.app.name), "wb"
         )
