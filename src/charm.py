@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2020-2024 Canonical Ltd.
 # See LICENSE file for licensing details.
+"""Nginx charm."""
 
 import logging
 import os
@@ -25,6 +26,8 @@ SSL_KEY_PATH = "/etc/nginx/ssl/server.key"
 
 
 class NginxCharm(CharmBase):
+    """Nginx operator charm class."""
+
     _stored = StoredState()
 
     def __init__(self, *args):  # noqa: D107
@@ -64,7 +67,9 @@ class NginxCharm(CharmBase):
     def _on_publish_relation_changed(self, event):
         relation_data = event.relation.data[event.unit]
         if "path" not in relation_data:
-            logger.info("Relation with {} not ready".format(event.unit))
+            logger.info(  # pylint: disable=logging-fstring-interpolation
+                f"Relation with {event.unit} not ready"
+            )
             return
         if "publishes" not in self._stored.config:
             self._stored.config["publishes"] = {}
@@ -105,21 +110,21 @@ class NginxCharm(CharmBase):
         self._reload_config()
 
     def _render_config(self, config):
-        with open("templates/nginx.conf.j2") as f:
+        with open("templates/nginx.conf.j2", encoding="utf-8") as f:
             t = Template(f.read())
         with open("/etc/nginx/nginx.conf", "wb") as f:
             b = t.render(opts=config).encode("UTF-8")
             f.write(b)
-        with open("templates/nginx-site.conf.j2") as f:
+        with open("templates/nginx-site.conf.j2", encoding="utf-8") as f:
             t = Template(f.read())
-        site_conf_name = "{}".format(self.model.app.name)
-        with open("/etc/nginx/sites-available/{}".format(site_conf_name), "wb") as f:
+        site_conf_name = self.model.app.name
+        with open(f"/etc/nginx/sites-available/{site_conf_name}", "wb") as f:
             b = t.render(config=config).encode("UTF-8")
             f.write(b)
-        if not islink("/etc/nginx/sites-enabled/{}".format(site_conf_name)):
+        if not islink(f"/etc/nginx/sites-enabled/{site_conf_name}"):
             os.symlink(
-                "/etc/nginx/sites-available/{}".format(site_conf_name),
-                "/etc/nginx/sites-enabled/{}".format(site_conf_name),
+                f"/etc/nginx/sites-available/{site_conf_name}",
+                f"/etc/nginx/sites-enabled/{site_conf_name}",
             )
 
     def _reload_config(self):
