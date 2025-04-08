@@ -16,9 +16,7 @@ def atomic_write_root_file(path: str, content: bytes, perms: int) -> None:
     :param bytes content: The content to write to the file.
     :param int perms: The file permissions to set on the created file.
     """
-    logger.debug(  # pylint: disable=logging-fstring-interpolation
-        f"Writing file {path} with root ownership and permissions {perms:o}"
-    )
+    logger.debug("Writing file %s with root ownership and permissions %o", path, perms)
 
     # Create a temporary file and replace the target file
     # This ensures atomic file writing for safety

@@ -67,9 +67,7 @@ class NginxCharm(CharmBase):
     def _on_publish_relation_changed(self, event):
         relation_data = event.relation.data[event.unit]
         if "path" not in relation_data:
-            logger.info(  # pylint: disable=logging-fstring-interpolation
-                f"Relation with {event.unit} not ready"
-            )
+            logger.info("Relation with %s not ready", event.unit)
             return
         if "publishes" not in self._stored.config:
             self._stored.config["publishes"] = {}
